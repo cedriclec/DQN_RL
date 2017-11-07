@@ -15,4 +15,11 @@ This informations are provided by the environnment [**GYM**](https://gym.openai.
 
 ###Deep Q Learning
 Deep-Q-Learning is an algorithm which enables me to implement this solution
-![](
+![Q-Learning Algorithm][Q-Learn images]
+
+
+
+[Q-Learn images2]:https://github.com/cedriclec/SpaceInvaderIA/blob/master/images/algoDeepQLearning.png
+[Q-Learn images]:/home/ced/Cours/Computational_Intelligence/code_example/myOwnDeepQLearningProject/images/algoDeepQLearning.png
+
+
