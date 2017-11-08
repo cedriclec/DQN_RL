@@ -130,7 +130,7 @@ if __name__ == '__main__':
             agent.remember(obs, nextObs, action, reward, done)
             obs = nextObs
             if done:
-                print("episode: {}/{}, score: {}, probToActRandomly: {:.2}"
+                print("episode: {}/{}, timeForEnd : {}, probToActRandomly: {:.2}"
                       .format(e, EPISODE_NB, timeSpend, agent.probaToTakeRandomAction))
                 break
         if (agent.hasToTrainWithMemory()):
