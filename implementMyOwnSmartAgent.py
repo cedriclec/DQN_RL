@@ -117,7 +117,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     env = gym.make(args.env_id)
     agent = SmartAgent(env.action_space, env.observation_space)
-    
+
     for e in range(EPISODE_NB):
         obs = env.reset()
         obs = np.reshape(obs, [1, env.observation_space.shape[0]])
@@ -135,7 +135,6 @@ if __name__ == '__main__':
                 break
         if (agent.hasToTrainWithMemory()):
             agent.trainWithReplay()
-        
 
     # Close the env and write monitor result info to disk
     env.close()
