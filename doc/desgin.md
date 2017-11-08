@@ -13,13 +13,18 @@ To make it easier I will provide to the model
 
 This informations are provided by the environnment [**GYM**](https://gym.openai.com/docs/)
 
+##Algorithm
 ###Deep Q Learning
 Deep-Q-Learning is an algorithm which enables me to implement this solution
+
 ![Q-Learning Algorithm][Q-Learn images]
 
+###Deep Reinforcement Learning
+In Q-Learning Algorithm, there is a function called Q Function, which is used to approximate the reward based on a state. We call it Q(s,a), where Q is a function which calculates the expected future value from state s and action a. Similarly in Deep Q Network algorithm, we use a neural network to approximate the reward based on the state. We will discuss how this works in detail.
+
+##Example of code
+My code is based on [this code](https://keon.io/deep-q-learning/)
 
 
 [Q-Learn images2]:https://github.com/cedriclec/SpaceInvaderIA/blob/master/images/algoDeepQLearning.png
-[Q-Learn images]:/home/ced/Cours/Computational_Intelligence/code_example/myOwnDeepQLearningProject/images/algoDeepQLearning.png
-
-
+[Q-Learn images]:/home/ced/Cours/Computational_Intelligence/code_example/myOwnDeepQLearningProject/images/algoDeepQLearningSmall.png

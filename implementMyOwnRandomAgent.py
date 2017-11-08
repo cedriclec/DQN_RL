@@ -14,8 +14,15 @@ import gym
 import numpy as np
 import time
 import tensorflow as tf
+from tensorflow import layers
+from tensorflow.keras import models
+from collection import deque 
 from gym import wrappers
-import ten
+
+EPSILON_EXPLORATE = 1.0
+MEMORY_MAX_LEN = 1000
+NB_HIDDEN_LAYER = 2
+NB_NODE_PER_HIDDEN_LAYER = 24
 
 class RandomAgent(object):
     """The world's simplest agent!"""
@@ -32,22 +39,36 @@ class RandomAgent(object):
 
 class SmartAgents(object):
     """Agent with deep neural network using tensorflow!"""
-    def __init__(self, action_space):
-        self.action_space = action_space
-        self.dnn = self.buildNeuralNetwork()
-        self.probaToTakeRandomAction = 0.2
-        self.memory = 2
+    def __init__(self, action_space, observation_space):
+        self.epsilonReductor = 0.99
+        self.epsilonMinimum = 0.01
+        self.learningRate = 0.5
 
-    def buildNeuralNetwork():
-        #use tensor flow for the Neural Network
-        return 1
-    
+        self.action_space = action_space
+        self.observation_space = observation_space
+        self.dnn = self.buildNeuralNetwork(self.observation_space, self.action_space)
+        self.probaToTakeRandomAction = EPSILON_EXPLORATE
+        self.memory = deque(maxlen=MEMORY_MAX_LEN) #Deque : list-like container with fast appends and pops on either end        
+
+    def buildNeuralNetwork(self, inputNodeNumber, outputNodeNumber):
+        #use tensor flow Keras Model for building the Neural Network
+        model = models.Sequential()
+        model.add(layers.Dense(NB_NODE_PER_HIDDEN_LAYER, input_dim = inputNodeNumber)) #24 layer as output
+        model.add(layers.Dense(NB_NODE_PER_HIDDEN_LAYER ))
+        model.add(layers.Dense(outputNodeNumber))
+        #model.compile
+        return model
+           
     def act(self, observation, reward, done, state):
         if np.random.rand() <= self.probaToTakeRandomAction :
-            return self.action_space.sample()
+            actionToChoose = self.action_space.sample()
         else :
             actionToChoose = self.dnn.predict(state)
-        return self.action_space.sample()
+        return actionToChoose
+
+    def remember(self, state, action): #TODO
+        self.memory.apppend((state, action))        
+
     
     def actRandomly(self):
         return self.action_space.sample()    
@@ -83,7 +104,8 @@ if __name__ == '__main__':
     outdir = '/tmp/random-agent-results'
     env = wrappers.Monitor(env, directory=outdir, force=True)
     env.seed(0)
-    agent = RandomAgent(env.action_space)
+    #agent = RandomAgent(env.action_space)
+    agent = RandomAgent(env.action_space, env.observation_spae)
 
     episode_count = 10
     reward = 0
@@ -100,8 +122,7 @@ if __name__ == '__main__':
             env.render()
             action = agent.actRandomly()
             ob, reward, done, info = env.step(action)
-            #printFunctions.printReward(reward)
-            #printFunctions.printObservation(ob)
+
             nb_iteration = nb_iteration - 1 
             time.sleep(0.1)
             #time.sleep(1)
@@ -112,5 +133,3 @@ if __name__ == '__main__':
 
     # Close the env and write monitor result info to disk
     env.close()
-
-
