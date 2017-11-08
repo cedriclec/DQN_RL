@@ -1,0 +1,26 @@
+#Implementation of the first part
+
+##Neural Network
+
+![Neural Network used][DNN Images]
+
+This neural network is based on [this solution][KeonSolution]. 
+
+This model provides the action to use by using the state (observation)
+
+####Input/Output
+* Inputs : Observations
+    
+    In our case there is four feature to observe (angle of the pole and position of the cart). (If want to extract this feature, we should use a convulation network to extract them from raw pixels). 
+
+* Outputs : Actions
+
+    In our case (CartPole game) there is two actions (left or right).
+
+####Hidden layer
+
+
+
+[DNN Images]:/home/ced/Cours/Computational_Intelligence/code_example/myOwnDeepQLearningProject/images/neuralNetwork.png
+
+[KeonSolution]: https://keon.io/deep-q-learning/
