@@ -102,3 +102,6 @@ ENV/
 
 #Useless File
 *CEM*
+
+#Markdown
+*.md~
