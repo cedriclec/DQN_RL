@@ -31,6 +31,7 @@ NB_HIDDEN_LAYER = 2
 NB_NODE_PER_HIDDEN_LAYER = 24
 BATCH_SIZE = 32
 EPISODE_NB = 1000
+TIME_FOR_ONE_EPISODE = 500
 
 def getMaxPrediction(predictArray):
 #    print(predictArray)
@@ -39,16 +40,16 @@ def getMaxPrediction(predictArray):
 
 class SmartAgent(object):
     """Agent with deep neural network using tensorflow!"""
-    def __init__(self, action_space, observation_space):
+    def __init__(self, action_size, observation_size):
         self.epsilonReductor = 0.995
         self.epsilonMinimum = 0.01
         self.learningRate = 0.001
         self.gamma = 0.95
         self.probaToTakeRandomAction = EPSILON_EXPLORATE
 
-        self.action_space = action_space
-        self.observation_space = observation_space
-        self.dnn = self.buildNeuralNetwork(self.observation_space.shape[0], self.action_space.n)
+        self.action_size = action_size
+        self.observation_size = observation_size
+        self.dnn = self.buildNeuralNetwork(self.observation_size, self.action_size)
         self.memory = deque(maxlen=MEMORY_MAX_LEN) #Deque : list-like container with fast appends and pops on either end
 
     def buildNeuralNetwork(self, inputNodeNumber, outputNodeNumber):
@@ -71,7 +72,7 @@ class SmartAgent(object):
 
     def actRandomly(self):
         #return random.randrange(self.action_space.n)
-        return self.action_space.sample()
+        return random.randrange(self.action_size)
 
     def hasToActRandomly(self):
         return (np.random.rand() <= self.probaToTakeRandomAction)
@@ -95,8 +96,8 @@ class SmartAgent(object):
         mini_batch = random.sample(self.memory, BATCH_SIZE)
 
         for (obs, nextObs, action, reward, done) in mini_batch:
-            target = self.calculTarget(reward, done, nextObs)
-            tar = self.getOutputTraining(target, action, obs)
+            targetReward = self.calculTarget(reward, done, nextObs)
+            tar = self.getOutputTraining(targetReward, action, obs)
             self.dnn.fit(obs, tar, epochs=1, verbose=0)
             
         self.reduceExplorationRandomly()
@@ -116,16 +117,28 @@ if __name__ == '__main__':
     parser.add_argument('env_id', nargs='?', default='CartPole-v1', help='Select the environment to run')
     args = parser.parse_args()
     env = gym.make(args.env_id)
-    agent = SmartAgent(env.action_space, env.observation_space)
+    
+    try:
+        action_size = env.action_space.n
+    except AttributeError:
+        action_size = env.action_space.shape[0]
+    try:
+        observation_size = env.observation_space.n
+    except AttributeError:
+        observation_size = env.observation_space.shape[0]
+        
+    agent = SmartAgent(action_size, observation_size)
 
     for e in range(EPISODE_NB):
         obs = env.reset()
-        obs = np.reshape(obs, [1, env.observation_space.shape[0]])
-        for timeSpend in range(500):
+        obs = np.reshape(obs, [1, observation_size])
+        for timeSpend in range(TIME_FOR_ONE_EPISODE):
             env.render()
             action = agent.act(obs)
+#            print ("Action ", action)
+#            print(type(action))
             nextObs, reward, done, info = env.step(action)
-            nextObs = np.reshape(nextObs, [1, env.observation_space.shape[0]])
+            nextObs = np.reshape(nextObs, [1, observation_size])
             reward = agent.calcRewardIfNotLastStep(reward, done)
             agent.remember(obs, nextObs, action, reward, done)
             obs = nextObs

@@ -8,14 +8,23 @@ Created on Mon Nov  6 16:50:26 2017
 
 
 def printActions(env):
-    print("Action available ")
-    print(env.action_space)
+    printTransition()   
+    print (" Action ")
+    print ("Action available total ", env.action_space)
+    printTransition()
     
 def printObservation(obs):
-    print("Observation available ")
-    print(obs)
+    printTransition()
+    print (" OBS ")
+    print (obs)
+    print ("Shape ", obs.shape)
+    print ("Size total ", obs.size)
+    printTransition()
     
-def printReward(rew):
+def printReward(env):
     print("Reward get from previous state ")
-    print(rew)
+    print(env)
 
+def printTransition():
+    print (" ======================= ")
+    print (" ======================= ")

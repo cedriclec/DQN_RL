@@ -1,0 +1,11 @@
+#Diffrent input shape for each geame
+
+##Breakout 
+Observation = [210, 160, 3] => 100800
+            => RGB, convert it to grey =>
+Observation => [210, 160] => 33600 (Convert it into 1D array for input as neural network) 
+
+!! In code, they found than observation => 84 84 (with grey value)
+
+Action = Discrete(4) =>
+Reward = [] =>

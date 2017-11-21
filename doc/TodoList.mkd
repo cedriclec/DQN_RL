@@ -1,0 +1,28 @@
+#Things to DO
+
+
+##Improve Deep Q Network (DQN)
+
+###Apply it to Mountain Car
+ede
+
+* Change neural architecture
+* Change hyperParameters
+
+ed
+
+##Use Double Deep Q Network (DDQN)
+
+
+1. Document what a double deep Q network is
+* Implement it first for Cartpole-Vo
+* Then adapt it for Breakout (Breakout base on this [git][DDQN code Breakout])
+
+
+##A3C (Asynchronous Actor-Critic Agents (A3C)) Train faster and ofter better high score on Atari Games
+
+
+
+
+[DDQN code Breakout]: https://github.com/rlcode/reinforcement-learning/blob/master/3-atari/1-breakout/breakout_dqn.py
+[RL implementation]: https://github.com/rlcode/reinforcement-learning
