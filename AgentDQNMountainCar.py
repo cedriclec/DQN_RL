@@ -26,26 +26,28 @@ from collections import deque
 from keras.optimizers import Adam
 
 EPSILON_EXPLORATE = 1.0
-MEMORY_MAX_LEN = 2000
-NB_HIDDEN_LAYER = 2
-NB_NODE_PER_HIDDEN_LAYER = 24
-BATCH_SIZE = 48
+EPSILON_END = 0.01
+MEMORY_MAX_LEN = 5000
+BATCH_SIZE = 64
 EPISODE_NB = 1000
 TIME_FOR_ONE_EPISODE = 3000
+MAX_TIME = 300
 
 def getMaxPrediction(predictArray):
-#    print(predictArray)
-#    print(np.amax(predictArray))
     return np.amax(predictArray)
 
-class SmartAgent(object):
+#Todo implement a mother class, and change child class
+class DQNAgentMountainCar(object):
     """Agent with deep neural network using tensorflow!"""
     def __init__(self, action_size, observation_size):
-        self.epsilonReductor = 0.995
-        self.epsilonMinimum = 0.01
+        #self.epsilonReductor = 0.995
+        self.epsilon = EPSILON_EXPLORATE
+        self.epsilonEnd = EPSILON_END
+        self.epsilonReductor = (self.epsilon - self.epsilonEnd) / 50000
         self.learningRate = 0.001
-        self.gamma = 0.95
-        self.probaToTakeRandomAction = EPSILON_EXPLORATE
+        #self.learningRate = 0.00025
+        self.gamma = 0.99
+        #self.gamma = 0.95
 
         self.action_size = action_size
         self.observation_size = observation_size
@@ -55,12 +57,13 @@ class SmartAgent(object):
     def buildNeuralNetwork(self, inputNodeNumber, outputNodeNumber):
         #use tensor flow Keras Model for building the Neural Network
         model = models.Sequential()
-        model.add(Dense(NB_NODE_PER_HIDDEN_LAYER, input_dim=inputNodeNumber, activation='relu')) #24 layer as output
-        model.add(Dense(NB_NODE_PER_HIDDEN_LAYER, activation='relu'))
-        model.add(Dense(outputNodeNumber, activation='linear'))
-        model.compile(loss='mse', optimizer=Adam(lr=self.learningRate)) #TODO
+        model.add(Dense(32, input_dim=inputNodeNumber, activation='relu', kernel_initializer='he_uniform'))
+        model.add(Dense(16, activation='relu', kernel_initializer='he_uniform'))
+        model.add(Dense(outputNodeNumber, activation='linear', kernel_initializer='he_uniform'))
+        model.summary()
+        model.compile(loss='mse', optimizer=Adam(lr=self.learningRate))
         return model
-           
+
     def act(self, observation):
         if  self.hasToActRandomly() :
             actionHighestPrediction = self.actRandomly()
@@ -70,22 +73,34 @@ class SmartAgent(object):
             actionHighestPrediction = np.argmax(actionsPrediction)
         return actionHighestPrediction
 
+    def takeRealActionOrFakeAction(self, obs, count_action, previousAction):
+        if ((count_action % 4) == 0):
+            action = self.act(obs)
+            #TODO
+            if (action == 0):
+                return 0
+            elif (action == 1):
+                return 2
+        return previousAction
+
     def actRandomly(self):
         #return random.randrange(self.action_space.n)
         return random.randrange(self.action_size)
 
     def hasToActRandomly(self):
-        return (np.random.rand() <= self.probaToTakeRandomAction)
+        return (np.random.rand() <= self.epsilon)
 
     def remember(self, observation, nextObservation, action, reward, done):
+        if (action == 2):
+            action = 1 #TODO
         self.memory.append((observation, nextObservation, action, reward, done))
 
     def hasToTrainWithMemory(self):
         return (len(self.memory) > BATCH_SIZE)
 
     def reduceExplorationRandomly(self):
-        if (self.probaToTakeRandomAction > self.epsilonMinimum):
-            self.probaToTakeRandomAction *= self.epsilonReductor
+        if (self.epsilon > self.epsilonEnd):
+            self.epsilon -= self.epsilonReductor
 
     def getOutputTraining(self, target, action, obs):
             tar = self.dnn.predict(obs)
@@ -108,49 +123,80 @@ class SmartAgent(object):
         return reward
 
     def calcRewardIfNotLastStep(self, reward, done):
-        if done:
-            reward = -10
+        if ( (reward != -1) or done):
+            print("Reward : ", reward, "  Done : ", done)
+#        if done:
+#            reward = -10
         return reward
+
+    def getLongerDone(self, timeCount):
+        #if (not done):
+        done = False
+        if timeCount >= MAX_TIME:
+            done = True
+        return done
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=None)
+    game = 'MountainCar-v0'
     parser.add_argument('env_id', nargs='?', default='MountainCar-v0', help='Select the environment to run')
     args = parser.parse_args()
     env = gym.make(args.env_id)
-    
     try:
         action_size = env.action_space.n
     except AttributeError:
         action_size = env.action_space.shape[0]
+    if(game == 'MountainCar-v0'):
+        action_size = 2 #Little hack
     try:
         observation_size = env.observation_space.n
     except AttributeError:
         observation_size = env.observation_space.shape[0]
         
-    agent = SmartAgent(action_size, observation_size)
+    agent = DQNAgentMountainCar(action_size, observation_size)
 
     for e in range(EPISODE_NB):
         obs = env.reset()
         obs = np.reshape(obs, [1, observation_size])
-        for timeSpend in range(TIME_FOR_ONE_EPISODE):
-            env.render()
-            if ((timeSpend % 1) == 0 ):
-                action = agent.act(obs)
-    #            print ("Action ", action)
-    #            print(type(action))
-                nextObs, reward, done, info = env.step(action)
-                nextObs = np.reshape(nextObs, [1, observation_size])
-            if ((timeSpend % 20) == 0):
-                print("Reward : ", reward)
+        actionCount = 0
+        previousAction = 0
+
+        score = 0
+        done = False
+        while not done:
+            obs = env.reset()
+            obs = np.reshape(obs, [1, observation_size])
+            actionCount += 1
+            
+            #action = (obs, actionCount)
+#            if ((timeSpend % 1) == 0 ):
+            action = agent.takeRealActionOrFakeAction(obs, actionCount, previousAction)
+            previousAction = action
+#            print ("Action ", action)
+#            print(type(action))
+            nextObs, reward, done, info = env.step(action)
+            done = agent.getLongerDone(actionCount)
+            nextObs = np.reshape(nextObs, [1, observation_size])
+#            if ((timeSpend % 20) == 0):
+#                print("Reward : ", reward)
             reward = agent.calcRewardIfNotLastStep(reward, done)
+            score += reward
+
             agent.remember(obs, nextObs, action, reward, done)
             obs = nextObs
+
+            #if (agent.hasToTrainWithMemory()):
+            #    agent.trainWithReplay()
+
+            if done:
+                print("episode: {}/{}, score : {}, probToActRandomly: {:.2}"
+                      .format(e, EPISODE_NB, score, agent.epsilon))
 #            if done:
-#                print("episode: {}/{}, timeForEnd : {}, {}, probToActRandomly: {:.2}"
-#                      .format(e, EPISODE_NB, timeSpend, TIME_FOR_ONE_EPISODE, agent.probaToTakeRandomAction))
-#                break
-        if (agent.hasToTrainWithMemory()):
-            agent.trainWithReplay()
+#                print("episode: {}/{}, score : {}, probToActRandomly: {:.2}"
+#                      .format(e, EPISODE_NB, score, agent.epsilon))
+#        if (agent.hasToTrainWithMemory()):
+#            agent.trainWithReplay()
 
     # Close the env and write monitor result info to disk
     env.close()
