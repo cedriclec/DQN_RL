@@ -185,12 +185,7 @@ class DDQNAgentMountainCar(object):
                 updateInput[i] = state
                 updateTarget[i] = target
 
-
-            #print("target ", target)
-            #print("target ", target[0])
-            #print("target ", target.shape[0])
             target = np.reshape(target, [1, target.shape[0]])
-            #print("target ", target)
 
             self.dnn.fit(state, target, batch_size=batchSize, epochs=1, verbose=0)
         #self.dnn.fit(updateInput, updateTarget, batch_size=batchSize, epochs=1, verbose=0)
