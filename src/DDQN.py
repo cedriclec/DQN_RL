@@ -17,8 +17,8 @@ from src.Agent import Agent
 class DDQN(Agent):
     """Double Deep Q-Learning Agent"""
 
-    def __init__(self, kwargs):
-        super(Agent, self).__init__(**kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
         self.dnn = self.build_neural_network(self.observation_size, self.action_size)
         self.dnnTarget = self.build_neural_network(self.observation_size, self.action_size)
