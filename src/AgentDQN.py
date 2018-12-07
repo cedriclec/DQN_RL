@@ -285,3 +285,7 @@ class DDQNAgentMountainCar(object):
                 #print("Start Train", self.hasToTrainWithMemory())
              #   self.trainWithReplay()
 
+if __name__ == "__main__":
+    agent = DDQNAgentMountainCar(gameName=CART_POLE)
+    agent.run(render=True)
+
