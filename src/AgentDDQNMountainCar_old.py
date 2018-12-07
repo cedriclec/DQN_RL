@@ -47,7 +47,6 @@ class DDQNAgentMountainCar(object):
     #def __init__(self, action_size, observation_size):
     #TODO Improve this one
     def __init__(self, action_size = -1, observation_size = -1, gameName = 'MountainCar-v0'):
-        #self.epsilonReductor = 0.995
 
         self.action_size = action_size
         self.observation_size = observation_size
@@ -108,7 +107,7 @@ class DDQNAgentMountainCar(object):
         return model
 
     def act(self, observation):
-        if  self.hasToActRandomly() :
+        if self.hasToActRandomly():
             actionHighestPrediction = self.actRandomly()
         else :
             actionsPrediction = self.dnn.predict(observation)
@@ -174,21 +173,20 @@ class DDQNAgentMountainCar(object):
             #target = self.dnn.predict(state)
 
 
-            # 큐러닝에서와 같이 s'에서의 최대 Q Value를 가져옴. 단, 타겟 모델에서 가져옴
             if done:
                 target[action] = reward
             else:
-                #target[action] = reward + self.gamma * getMaxPrediction(self.dnnTarget.predict(next_state)[0])
+                target[action] = reward + self.gamma * getMaxPrediction(self.dnnTarget.predict(next_state)[0])
 
                 #Use one DNN
-                target[action] = reward + self.gamma * getMaxPrediction(self.dnn.predict(next_state)[0])
-                updateInput[i] = state
-                updateTarget[i] = target
+                #target[action] = reward + self.gamma * getMaxPrediction(self.dnn.predict(next_state)[0])
 
             target = np.reshape(target, [1, target.shape[0]])
+            updateInput[i] = state
+            updateTarget[i] = target
 
-            self.dnn.fit(state, target, batch_size=batchSize, epochs=1, verbose=0)
-        #self.dnn.fit(updateInput, updateTarget, batch_size=batchSize, epochs=1, verbose=0)
+            #self.dnn.fit(state, target, batch_size=batchSize, epochs=1, verbose=0)
+        self.dnn.fit(updateInput, updateTarget, batch_size=batchSize, epochs=1, verbose=0)
 
         self.reduceExplorationRandomly()
 
@@ -208,14 +206,12 @@ class DDQNAgentMountainCar(object):
         #And good reward if reach the goal
 
         if ( (self.gameName == MOUNTAIN_GAME) and done and (time < MAX_TIME_FOR_ONE_EPISODE ) ):
-            reward = 100
+            reward = 10 #100 Before
         elif ((self.gameName == CART_POLE) and done):
             reward = -10
         return reward
 
     def getLongerDone(self, timeCount, obs, done):
-        #if (not done):
-        #print ("obs ", obs[0])
         if (self.gameName == MOUNTAIN_GAME):
             done = False
             if (timeCount >= MAX_TIME) or (obs[0] > 0.5):
@@ -252,12 +248,10 @@ class DDQNAgentMountainCar(object):
 
                 action = self.takeRealActionOrFakeAction(obs, actionCount, previousAction)
                 previousAction = action
-                #print("action ", action)
                 nextObs, reward, done, info = self.env.step(action)
                 done = self.getLongerDone(actionCount, nextObs, done)
                 reward = self.calcRewardIfNotLastStep(reward, done, actionCount)
                 nextObs = np.reshape(nextObs, [1, self.observation_size])
-                #print("nextObs ", nextObs)
 
                 score += reward
                 self.remember(obs, nextObs, action, reward, done)
@@ -266,7 +260,6 @@ class DDQNAgentMountainCar(object):
                     self.trainWithReplay()
 
                 obs = nextObs
-
 
                 if done:
                     self.env.reset()
@@ -280,12 +273,3 @@ class DDQNAgentMountainCar(object):
 
             if ((self.gameName == CART_POLE) and self.hasToTrainWithMemory()):
                 self.trainWithReplay()
-
-            #if (self.hasToTrainWithMemory()):
-                #print("Start Train", self.hasToTrainWithMemory())
-             #   self.trainWithReplay()
-
-if __name__ == "__main__":
-    agent = DDQNAgentMountainCar(gameName=CART_POLE)
-    agent.run(render=True)
-

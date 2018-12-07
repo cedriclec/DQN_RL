@@ -24,7 +24,6 @@ from keras.layers import Dense
 from collections import deque 
 from keras.optimizers import Adam
 
-MOUNTAIN_GAME = 'MountainCar-v0'
 EPSILON_EXPLORATE = 1.0
 EPSILON_END = 0.005
 MEMORY_MAX_LEN = 10000
@@ -36,8 +35,6 @@ LEARNING_RATE = 0.001
 TRAIN_START_TIME = 1000 #Time to start avoid learn too soon,
 RENDER = False
 
-CART_POLE = 'CartPole-v1'
-
 def getMaxPrediction(predictArray):
     return np.amax(predictArray)
 
@@ -47,6 +44,7 @@ class DDQNAgentMountainCar(object):
     #def __init__(self, action_size, observation_size):
     #TODO Improve this one
     def __init__(self, action_size = -1, observation_size = -1, gameName = 'MountainCar-v0'):
+        #self.epsilonReductor = 0.995
 
         self.action_size = action_size
         self.observation_size = observation_size
@@ -177,17 +175,17 @@ class DDQNAgentMountainCar(object):
             if done:
                 target[action] = reward
             else:
-                target[action] = reward + self.gamma * getMaxPrediction(self.dnnTarget.predict(next_state)[0])
+                #target[action] = reward + self.gamma * getMaxPrediction(self.dnnTarget.predict(next_state)[0])
 
                 #Use one DNN
-                #target[action] = reward + self.gamma * getMaxPrediction(self.dnn.predict(next_state)[0])
+                target[action] = reward + self.gamma * getMaxPrediction(self.dnn.predict(next_state)[0])
+                updateInput[i] = state
+                updateTarget[i] = target
 
             target = np.reshape(target, [1, target.shape[0]])
-            updateInput[i] = state
-            updateTarget[i] = target
 
-            #self.dnn.fit(state, target, batch_size=batchSize, epochs=1, verbose=0)
-        self.dnn.fit(updateInput, updateTarget, batch_size=batchSize, epochs=1, verbose=0)
+            self.dnn.fit(state, target, batch_size=batchSize, epochs=1, verbose=0)
+        #self.dnn.fit(updateInput, updateTarget, batch_size=batchSize, epochs=1, verbose=0)
 
         self.reduceExplorationRandomly()
 
@@ -207,12 +205,14 @@ class DDQNAgentMountainCar(object):
         #And good reward if reach the goal
 
         if ( (self.gameName == MOUNTAIN_GAME) and done and (time < MAX_TIME_FOR_ONE_EPISODE ) ):
-            reward = 10 #100 Before
+            reward = 100
         elif ((self.gameName == CART_POLE) and done):
             reward = -10
         return reward
 
     def getLongerDone(self, timeCount, obs, done):
+        #if (not done):
+        #print ("obs ", obs[0])
         if (self.gameName == MOUNTAIN_GAME):
             done = False
             if (timeCount >= MAX_TIME) or (obs[0] > 0.5):
@@ -249,10 +249,12 @@ class DDQNAgentMountainCar(object):
 
                 action = self.takeRealActionOrFakeAction(obs, actionCount, previousAction)
                 previousAction = action
+                #print("action ", action)
                 nextObs, reward, done, info = self.env.step(action)
                 done = self.getLongerDone(actionCount, nextObs, done)
                 reward = self.calcRewardIfNotLastStep(reward, done, actionCount)
                 nextObs = np.reshape(nextObs, [1, self.observation_size])
+                #print("nextObs ", nextObs)
 
                 score += reward
                 self.remember(obs, nextObs, action, reward, done)
@@ -261,6 +263,7 @@ class DDQNAgentMountainCar(object):
                     self.trainWithReplay()
 
                 obs = nextObs
+
 
                 if done:
                     self.env.reset()
@@ -274,3 +277,8 @@ class DDQNAgentMountainCar(object):
 
             if ((self.gameName == CART_POLE) and self.hasToTrainWithMemory()):
                 self.trainWithReplay()
+
+            #if (self.hasToTrainWithMemory()):
+                #print("Start Train", self.hasToTrainWithMemory())
+             #   self.trainWithReplay()
+
