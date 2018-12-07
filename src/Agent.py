@@ -15,6 +15,7 @@ import random
 import numpy as np
 from collections import deque
 import logging
+import os
 
 from keras import models
 from keras.layers import Dense
@@ -41,10 +42,13 @@ class Agent(ABC):
 
     def __init__(self, game_name='MountainCar-v0', log_file='agent.log'):
         format = '%(asctime)-15s %(filename)-8s %(levelname)-s %(message)s'
+        log_path = 'log'
+        if not os.path.exists(log_path):
+            os.makedirs(log_path)
+        log_path = os.path.join(log_path, log_file)
         # level = logging.INFO # logging.DEBUG
         level = logging.INFO
-
-        logging.basicConfig(filename=log_file, level=level, format=format)
+        logging.basicConfig(filename=log_path, level=level, format=format)
         self.logger = logging.getLogger()
         self.logger.info("========Init Agent=======")
         self.logger.info("Game used %s" % game_name)
