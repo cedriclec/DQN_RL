@@ -8,11 +8,10 @@ pip install -r requirements.txt
 
 # Usage
 ```python
-TODO
+python src/main.py
 ```
 
 # TODO
 - Change project Name
 - Create the requirements
-- Create the usage
 
