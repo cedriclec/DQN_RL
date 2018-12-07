@@ -13,14 +13,18 @@ from abc import ABC, abstractmethod
 import gym
 import random
 import numpy as np
+from collections import deque
+import logging
 
 from keras import models
 from keras.layers import Dense
-from collections import deque
 from keras.optimizers import Adam
 
+# Game name used
 CART_POLE = 'CartPole-v1'
 MOUNTAIN_GAME = 'MountainCar-v0'
+
+# Hyper Parameters value
 EPSILON_EXPLORATE = 1.0
 EPSILON_END = 0.005
 MEMORY_MAX_LEN = 10000
@@ -35,8 +39,15 @@ TRAIN_START_TIME = 1000  # Time to start, it enables to avoid to learn too soon
 class Agent(ABC):
     """Agent mother class"""
 
-    def __init__(self, game_name='MountainCar-v0'):
-        print(game_name)
+    def __init__(self, game_name='MountainCar-v0', log_file='agent.log'):
+        format = '%(asctime)-15s %(filename)-8s %(levelname)-s %(message)s'
+        # level = logging.INFO # logging.DEBUG
+        level = logging.INFO
+
+        logging.basicConfig(filename=log_file, level=level, format=format)
+        self.logger = logging.getLogger()
+        self.logger.info("========Init Agent=======")
+        self.logger.info("Game used %s" % game_name)
         self.gameName = game_name
         self.env = gym.make(game_name)
 
@@ -136,7 +147,7 @@ class Agent(ABC):
         self.memory.append((observation, next_observation, action, reward, done))
 
     def has_to_train_with_memory(self):
-        # print("memory ", len(self.memory), " self.batch_size ", self.batch_size ," self.trainStart ", self.trainStart)
+        # self.logger.debug("memory : %s, batch_size : %s, train_start : %s" %(len(self.memory), self.batch_size, self.trainStart))
         return (len(self.memory) > self.batch_size) and (len(self.memory) > self.trainStart)
 
     def reduce_exploration_randomly(self):
@@ -164,8 +175,8 @@ class Agent(ABC):
         return reward
 
     def get_longer_done(self, time_count, obs, done):
-        # if (not done):
-        # print ("obs ", obs[0])
+        #  if not done:
+        # self.logger.debug("obs %d" % obs[0])
         if self.gameName == MOUNTAIN_GAME:
             done = False
             if (time_count >= MAX_TIME) or (obs[0] > 0.5):
@@ -180,6 +191,10 @@ class Agent(ABC):
         self.dnn.load_weights('weights.h5')
 
     def run(self, nb_episodes=20, render=False):
+        self.logger.info('*'*10)
+        self.logger.info("Start training for %s episodes" % nb_episodes)
+        self.logger.info('*'*10)
+
         scores, episodes = [], []
 
         for e in range(nb_episodes):
@@ -200,16 +215,17 @@ class Agent(ABC):
 
                 action = self.take_real_action_or_fake_action(obs, actionCount, previous_action)
                 previous_action = action
-                # print("action ", action)
+                # self.logger.debug("action %d " % action)
                 next_obs, reward, done, info = self.env.step(action)
                 done = self.get_longer_done(actionCount, next_obs, done)
                 reward = self.calc_reward_if_not_last_step(reward, done, actionCount)
                 next_obs = np.reshape(next_obs, [1, self.observation_size])
-                # print("next_obs ", next_obs)
+                # self.logger.debug("next_obs %s " % next_obs)
 
                 score += reward
                 self.remember(obs, next_obs, action, reward, done)
 
+                # Train at every action => TODO Check if should really be done
                 if (self.gameName == MOUNTAIN_GAME) and self.has_to_train_with_memory():
                     self.train()
 
@@ -222,8 +238,13 @@ class Agent(ABC):
                     scores.append(score)
                     episodes.append(e)
 
-                    print("episode:", e, "  score:", score, "  memory length:", len(self.memory),
-                          "  epsilon:", self.epsilon)
+                    self.logger.info("episode: %s, score %s, memory length : %s, epsilon : %s"
+                                     %(e, score, len(self.memory), self.epsilon))
 
+            # TODO check if this one is better => train only at the end
             if (self.gameName == CART_POLE) and self.has_to_train_with_memory():
                 self.train()
+
+        self.logger.info('/' * 10)
+        self.logger.info("End of the training")
+        self.logger.info('/' * 10)

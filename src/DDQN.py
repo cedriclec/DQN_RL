@@ -18,6 +18,7 @@ class DDQN(Agent):
     """Double Deep Q-Learning Agent"""
 
     def __init__(self, **kwargs):
+        kwargs['log_file'] = 'DDQN.log'
         super().__init__(**kwargs)
 
         self.dnn = self.build_neural_network(self.observation_size, self.action_size)
@@ -28,7 +29,7 @@ class DDQN(Agent):
         batch_size = min(self.batch_size, len(self.memory))
         mini_batch = random.sample(self.memory, batch_size)
 
-        # print("mini_batch ", mini_batch)
+        # self.logger.debug("mini_batch %s " % mini_batch)
         update_input = np.zeros((batch_size, self.observation_size))
         update_target = np.zeros((batch_size, self.action_size))
 
