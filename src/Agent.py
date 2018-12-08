@@ -14,9 +14,11 @@ import gym
 import random
 import numpy as np
 from collections import deque
+from tqdm import trange
 import logging
 import os
-
+from datetime import datetime
+import matplotlib.pyplot as plt
 from keras import models
 from keras.layers import Dense
 from keras.optimizers import Adam
@@ -41,7 +43,7 @@ class Agent(ABC):
     """Agent mother class"""
 
     def __init__(self, game_name='MountainCar-v0', log_file='agent.log'):
-        format = '%(asctime)-15s %(filename)-8s %(levelname)-s %(message)s'
+        format = '%(asctime)-15s %(levelname)-s %(message)s'
         log_path = 'log'
         if not os.path.exists(log_path):
             os.makedirs(log_path)
@@ -85,15 +87,42 @@ class Agent(ABC):
         if self.gameName == CART_POLE:
             self.epsilonReductor = 0.995
 
-    @abstractmethod
+    # It's the same except the compute target => and the update target in run
     def train(self):
-        pass
+        # print("in train Agent")
+        # Get some random episode from memory, and train on this episodes
+        batch_size = min(self.batch_size, len(self.memory))
+        mini_batch = random.sample(self.memory, batch_size)
+
+        self.logger.debug("mini_batch ", mini_batch)
+        update_input = np.zeros((batch_size, self.observation_size))
+        update_target = np.zeros((batch_size, self.action_size))
+
+        for i in range(batch_size):
+            state, next_state, action, reward, done = mini_batch[i]
+            target = self.dnn.predict(state)[0]
+
+            # Associate to action used in memory, the reward associated
+            target[action] = self.compute_target_reward(reward, done, next_state)
+            update_input[i] = state
+            # print(target.shape, target)
+            target = np.reshape(target, [1, -1]) # reshape into a vector
+            # print(target.shape, target)
+            update_target[i] = target
+            self.dnn.fit(state, target, batch_size=batch_size, epochs=1, verbose=0)
+
+        # Train on all batch update
+        # self.dnn.fit(update_input, update_target, batch_size=batch_size, epochs=1, verbose=0)
+        # self.dnn.fit(update_input, update_target, batch_size=batch_size, epochs=5, verbose=0)
+
+        # After each train, reduce the exploration randomly
+        self.reduce_exploration_randomly()
 
     @abstractmethod
-    def compute_target(self, reward, done, next_obs):
+    def compute_target_reward(self, reward, done, next_obs):
         pass
 
-    # Hack : In run only function which differs from DQN / DDQN => FIX IT
+    # Hack : In run only function which differs from DQN / DDQN => FIX IT
     def update_target_model(self):
         pass
 
@@ -125,7 +154,7 @@ class Agent(ABC):
     def act(self, observation):
         if self.has_to_act_randomly():
             action_highest_prediction = self.act_randomly()
-        else :
+        else:
             actions_prediction = self.dnn.predict(observation)
             action_highest_prediction = np.argmax(actions_prediction[0])
         return action_highest_prediction
@@ -140,7 +169,7 @@ class Agent(ABC):
                     previous_action = 0
                 elif action == 1:
                     previous_action = 2
-        else :
+        else:
             previous_action = self.act(obs)
         return previous_action
 
@@ -151,7 +180,7 @@ class Agent(ABC):
         self.memory.append((observation, next_observation, action, reward, done))
 
     def has_to_train_with_memory(self):
-        # self.logger.debug("memory : %s, batch_size : %s, train_start : %s" %(len(self.memory), self.batch_size, self.trainStart))
+        # self.logger.debug("memory : %s, batch_size : %s, train_start : %s" %(len(self.memory), self.batch_size, self.trainStart))
         return (len(self.memory) > self.batch_size) and (len(self.memory) > self.trainStart)
 
     def reduce_exploration_randomly(self):
@@ -161,10 +190,10 @@ class Agent(ABC):
         else:
             self.epsilon *= self.epsilonReductor
 
-    def get_output_training(self, target, action, obs):
-            tar = self.dnn.predict(obs)
-            tar[0][action] = target
-            return tar
+        # def get_output_training(self, target, action, obs):
+            # tar = self.dnn.predict(obs)
+            # tar[0][action] = target
+            # return tar
 
     def calc_reward_if_not_last_step(self, reward, done, time):
         # Fail to converge to goal
@@ -175,6 +204,7 @@ class Agent(ABC):
         if (self.gameName == MOUNTAIN_GAME) and done and (time < MAX_TIME_FOR_ONE_EPISODE ):
             reward = 100
         elif (self.gameName == CART_POLE) and done:
+            # Try lowest reward -100 => when kill it
             reward = -10
         return reward
 
@@ -194,14 +224,49 @@ class Agent(ABC):
     def update_to_save_model(self):
         self.dnn.load_weights('weights.h5')
 
-    def run(self, nb_episodes=20, render=False):
+    def mean_some_range(self, x, y, nb_split=100):
+        x_split = np.array_split(x, nb_split)
+        y_split = np.array_split(y, nb_split)
+        x_mean = np.fromiter(map(np.mean, x_split), dtype=np.int16) # TODO see if take min, max, or mean => change name wrt func
+        y_mean = np.fromiter(map(np.mean, y_split), dtype=np.float32)
+        return x_mean, y_mean
+
+    # TODO Put the ploting in other file
+    # TODO take some mean => too much noise in plot
+    def plot_stat(self, scores, episodes, epsilons, save_plot=False):
+        date = str(datetime.now().date())
+        # plt.interactive(False) # Need to put this to plot
+        print("Will plot")
+        episodes_mean, scores_mean = self.mean_some_range(episodes, scores, 100)
+        plt.plot(episodes_mean, scores_mean)
+        plt.title("Average Score evolution for %s " % self.algo_name)
+        plt.ylabel("Average Score at the end of episode")
+        plt.xlabel("episode number")
+        if save_plot:
+            file_save = self.algo_name + '_score_' + date + '_.png'
+            file_save = os.path.join('log', file_save)
+            plt.savefig(file_save)
+        plt.show(block=True)
+
+        episodes_mean, epsilons_mean = self.mean_some_range(episodes, epsilons, 100)
+        plt.plot(episodes_mean, epsilons_mean)
+        plt.title("AverageEpsilon evolution for %s " % self.algo_name)
+        plt.ylabel("Average Epsilon during the episode")
+        plt.xlabel("Episode number")
+        if save_plot:
+            file_save = self.algo_name + '_epsilon_' + date + '_.png'
+            file_save = os.path.join('log', file_save)
+            plt.savefig(file_save)
+        plt.show(block=True)
+
+    def run(self, nb_episodes=20, render=False, save_plot=False):
         self.logger.info('*'*10)
         self.logger.info("Start training for %s episodes" % nb_episodes)
         self.logger.info('*'*10)
 
-        scores, episodes = [], []
+        scores, episodes, epsilons = [], [], []
 
-        for e in range(nb_episodes):
+        for e in trange(nb_episodes):
             obs = self.env.reset()
             obs = np.reshape(obs, [1, self.observation_size])
 
@@ -219,12 +284,12 @@ class Agent(ABC):
 
                 action = self.take_real_action_or_fake_action(obs, actionCount, previous_action)
                 previous_action = action
-                # self.logger.debug("action %d " % action)
+                # self.logger.debug("action %d " % action)
                 next_obs, reward, done, info = self.env.step(action)
                 done = self.get_longer_done(actionCount, next_obs, done)
                 reward = self.calc_reward_if_not_last_step(reward, done, actionCount)
                 next_obs = np.reshape(next_obs, [1, self.observation_size])
-                # self.logger.debug("next_obs %s " % next_obs)
+                # self.logger.debug("next_obs %s " % next_obs)
 
                 score += reward
                 self.remember(obs, next_obs, action, reward, done)
@@ -237,10 +302,11 @@ class Agent(ABC):
 
                 if done:
                     self.env.reset()
-                    self.update_target_model() # Find a way to avoid this one
+                    self.update_target_model()  # Find a way to avoid this one
 
                     scores.append(score)
                     episodes.append(e)
+                    epsilons.append(self.epsilon)
 
                     self.logger.info("episode: %s, score %s, memory length : %s, epsilon : %s"
                                      %(e, score, len(self.memory), self.epsilon))
@@ -248,6 +314,14 @@ class Agent(ABC):
             # TODO check if this one is better => train only at the end
             if (self.gameName == CART_POLE) and self.has_to_train_with_memory():
                 self.train()
+
+        if save_plot:
+            kwargs = {
+                'scores': scores,
+                'episodes': episodes,
+                'epsilons': epsilons
+            }
+            self.plot_stat(**kwargs, save_plot=True)
 
         self.logger.info('/' * 10)
         self.logger.info("End of the training")

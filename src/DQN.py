@@ -18,17 +18,23 @@ class DQN(Agent):
     """Deep Q-Learning Agent"""
 
     def __init__(self, **kwargs):
-        kwargs['log_file'] = 'DQN.log'
+        self.algo_name = 'DQN'
+        kwargs['log_file'] = self.algo_name + '.log'
         super().__init__(**kwargs)
 
         self.dnn = self.build_neural_network(self.observation_size, self.action_size)
+
+    def compute_target_reward(self, reward, done, next_obs):
+        if not done:
+            reward + self.gamma * self.get_max_prediction((self.dnn.predict(next_obs)[0]))
+        return reward
 
     # TODO refactor with DDQN
     # It's the same except the compute target => and the update target in run
     def train(self):
         batch_size = min(self.batch_size, len(self.memory))
         mini_batch = random.sample(self.memory, batch_size)
-
+        # print("in train DQN")
         self.logger.debug("mini_batch ", mini_batch)
         update_input = np.zeros((batch_size, self.observation_size))
         update_target = np.zeros((batch_size, self.action_size))
@@ -47,7 +53,7 @@ class DQN(Agent):
             #target = self.dnn.predict(state)
 
 
-            target[action] = self.compute_target(reward, done, next_state)
+            target[action] = self.compute_target_reward(reward, done, next_state)
 
             update_input[i] = state
             update_target[i] = target
@@ -60,8 +66,3 @@ class DQN(Agent):
         # self.dnn.fit(update_input, update_target, batch_size=batch_size, epochs=1, verbose=0)
 
         self.reduce_exploration_randomly()
-
-    def compute_target(self, reward, done, next_obs):
-        if not done:
-            reward + self.gamma * self.get_max_prediction((self.dnn.predict(next_obs)[0]))
-        return reward
