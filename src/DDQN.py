@@ -29,7 +29,7 @@ class DDQN(Agent):
         # Main difference with DQN
         # In DDQN, use target model to give us the reward
         if not done:
-            reward + self.gamma * self.get_max_prediction((self.dnnTarget.predict(next_obs)[0]))
+            reward = reward + self.discount_factor * self.get_max_prediction((self.dnnTarget.predict(next_obs)[0]))
         return reward
 
     def update_target_model(self):

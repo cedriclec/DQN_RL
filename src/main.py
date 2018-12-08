@@ -7,4 +7,4 @@ MOUNTAIN_GAME = 'MountainCar-v0'
 if __name__ == "__main__":
     kwargs = {'game_name': CART_POLE}
     agent = DQN(**kwargs)
-    agent.run(render=False, nb_episodes=4000, save_plot=True)
+    agent.run(render=False, nb_episodes=5000, save_plot=True)
