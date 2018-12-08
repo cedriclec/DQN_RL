@@ -35,7 +35,7 @@ BATCH_SIZE = 64
 TIME_FOR_ONE_EPISODE = 3000
 MAX_TIME = 300
 MAX_TIME_FOR_ONE_EPISODE = 300
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.01  # 0.001
 TRAIN_START_TIME = 1000  # Time to start, it enables to avoid to learn too soon
 
 
@@ -60,8 +60,7 @@ class Agent(ABC):
         self.trainStart = TRAIN_START_TIME
         self.learningRate = LEARNING_RATE
         self.batch_size = BATCH_SIZE
-        # self.gamma = 0.99 One in mountainCarDQN
-        self.gamma = 0.95
+        self.discount_factor = 0.99 # 0.95
         self.epsilon = EPSILON_EXPLORATE
         self.epsilonEnd = EPSILON_END
 
@@ -87,51 +86,7 @@ class Agent(ABC):
         if self.gameName == CART_POLE:
             self.epsilonReductor = 0.995
 
-    # It's the same except the compute target => and the update target in run
-    def train(self):
-        # print("in train Agent")
-        # Get some random episode from memory, and train on this episodes
-        batch_size = min(self.batch_size, len(self.memory))
-        mini_batch = random.sample(self.memory, batch_size)
-
-        self.logger.debug("mini_batch ", mini_batch)
-        update_input = np.zeros((batch_size, self.observation_size))
-        update_target = np.zeros((batch_size, self.action_size))
-
-        for i in range(batch_size):
-            state, next_state, action, reward, done = mini_batch[i]
-            target = self.dnn.predict(state)[0]
-
-            # Associate to action used in memory, the reward associated
-            target[action] = self.compute_target_reward(reward, done, next_state)
-            update_input[i] = state
-            # print(target.shape, target)
-            target = np.reshape(target, [1, -1]) # reshape into a vector
-            # print(target.shape, target)
-            update_target[i] = target
-            self.dnn.fit(state, target, batch_size=batch_size, epochs=1, verbose=0)
-
-        # Train on all batch update
-        # self.dnn.fit(update_input, update_target, batch_size=batch_size, epochs=1, verbose=0)
-        # self.dnn.fit(update_input, update_target, batch_size=batch_size, epochs=5, verbose=0)
-
-        # After each train, reduce the exploration randomly
-        self.reduce_exploration_randomly()
-
-    @abstractmethod
-    def compute_target_reward(self, reward, done, next_obs):
-        pass
-
-    # Hack : In run only function which differs from DQN / DDQN => FIX IT
-    def update_target_model(self):
-        pass
-
-    def act_randomly(self):
-        return random.randrange(self.action_size)
-
-    def has_to_act_randomly(self):
-        return np.random.rand() <= self.epsilon
-
+    # ============================ACT===================
     # TODO : Change to PyTorch
     def build_neural_network(self, input_node_number, output_node_number):
         # use tensor flow Keras Model for building the Neural Network
@@ -144,12 +99,22 @@ class Agent(ABC):
             model.compile(loss='mse', optimizer=Adam(lr=self.learningRate))
         elif self.gameName == CART_POLE:
             model = models.Sequential()
-            model.add(Dense(24, input_dim=input_node_number, activation='relu'))  # 24 layer as output
-            model.add(Dense(24, activation='relu'))
-            model.add(Dense(output_node_number, activation='linear'))
+            model.add(Dense(24, input_dim=input_node_number, activation='relu', kernel_initializer='he_uniform'))
+            model.add(Dense(24, activation='relu', kernel_initializer='he_uniform'))
+            model.add(Dense(output_node_number, activation='linear', kernel_initializer='he_uniform'))
             model.summary()
-            model.compile(loss='mse', optimizer=Adam(lr=self.learningRate))  # TODO
+            model.compile(loss='mse', optimizer=Adam(lr=self.learningRate))
         return model
+
+    # Hack : In run only function which differs from DQN / DDQN => FIX IT
+    def update_target_model(self):
+        pass
+
+    def act_randomly(self):
+        return random.randrange(self.action_size)
+
+    def has_to_act_randomly(self):
+        return np.random.rand() <= self.epsilon
 
     def act(self, observation):
         if self.has_to_act_randomly():
@@ -173,6 +138,37 @@ class Agent(ABC):
             previous_action = self.act(obs)
         return previous_action
 
+    # ==========================TRAIN================
+    # It's the same except the compute target => and the update target in run
+    def train(self):
+        # Get some random episode from memory, and train on this episodes
+        batch_size = min(self.batch_size, len(self.memory))
+        mini_batch = random.sample(self.memory, batch_size)
+
+        self.logger.debug("mini_batch ", mini_batch)
+        update_input = np.zeros((batch_size, self.observation_size))
+        update_target = np.zeros((batch_size, self.action_size))
+
+        for i in range(batch_size):
+            state, next_state, action, reward, done = mini_batch[i]
+            target = self.dnn.predict(state)[0]
+
+            # Associate to the action used in memory, the reward associated
+            target[action] = self.compute_target_reward(reward, done, next_state)
+            update_input[i] = state
+            # target = np.reshape(target, [1, -1]) # reshape into a vector
+            update_target[i] = target
+
+        # Train on all batch update
+        self.dnn.fit(update_input, update_target, batch_size=batch_size, epochs=1, verbose=0)
+
+        # After each train, reduce the exploration randomly
+        self.reduce_exploration_randomly()
+
+    @abstractmethod
+    def compute_target_reward(self, reward, done, next_obs):
+        pass
+
     def remember(self, observation, next_observation, action, reward, done):
         if self.gameName == MOUNTAIN_GAME:
             if action == 2:
@@ -189,11 +185,6 @@ class Agent(ABC):
                 self.epsilon -= self.epsilonReductor
         else:
             self.epsilon *= self.epsilonReductor
-
-        # def get_output_training(self, target, action, obs):
-            # tar = self.dnn.predict(obs)
-            # tar[0][action] = target
-            # return tar
 
     def calc_reward_if_not_last_step(self, reward, done, time):
         # Fail to converge to goal
@@ -221,44 +212,6 @@ class Agent(ABC):
     def get_max_prediction(predict_array):
         return np.amax(predict_array)
 
-    def update_to_save_model(self):
-        self.dnn.load_weights('weights.h5')
-
-    def mean_some_range(self, x, y, nb_split=100):
-        x_split = np.array_split(x, nb_split)
-        y_split = np.array_split(y, nb_split)
-        x_mean = np.fromiter(map(np.mean, x_split), dtype=np.int16) # TODO see if take min, max, or mean => change name wrt func
-        y_mean = np.fromiter(map(np.mean, y_split), dtype=np.float32)
-        return x_mean, y_mean
-
-    # TODO Put the ploting in other file
-    # TODO take some mean => too much noise in plot
-    def plot_stat(self, scores, episodes, epsilons, save_plot=False):
-        date = str(datetime.now().date())
-        # plt.interactive(False) # Need to put this to plot
-        print("Will plot")
-        episodes_mean, scores_mean = self.mean_some_range(episodes, scores, 100)
-        plt.plot(episodes_mean, scores_mean)
-        plt.title("Average Score evolution for %s " % self.algo_name)
-        plt.ylabel("Average Score at the end of episode")
-        plt.xlabel("episode number")
-        if save_plot:
-            file_save = self.algo_name + '_score_' + date + '_.png'
-            file_save = os.path.join('log', file_save)
-            plt.savefig(file_save)
-        plt.show(block=True)
-
-        episodes_mean, epsilons_mean = self.mean_some_range(episodes, epsilons, 100)
-        plt.plot(episodes_mean, epsilons_mean)
-        plt.title("AverageEpsilon evolution for %s " % self.algo_name)
-        plt.ylabel("Average Epsilon during the episode")
-        plt.xlabel("Episode number")
-        if save_plot:
-            file_save = self.algo_name + '_epsilon_' + date + '_.png'
-            file_save = os.path.join('log', file_save)
-            plt.savefig(file_save)
-        plt.show(block=True)
-
     def run(self, nb_episodes=20, render=False, save_plot=False):
         self.logger.info('*'*10)
         self.logger.info("Start training for %s episodes" % nb_episodes)
@@ -285,7 +238,7 @@ class Agent(ABC):
                 action = self.take_real_action_or_fake_action(obs, actionCount, previous_action)
                 previous_action = action
                 # self.logger.debug("action %d " % action)
-                next_obs, reward, done, info = self.env.step(action)
+                next_obs, reward, done, _ = self.env.step(action)
                 done = self.get_longer_done(actionCount, next_obs, done)
                 reward = self.calc_reward_if_not_last_step(reward, done, actionCount)
                 next_obs = np.reshape(next_obs, [1, self.observation_size])
@@ -326,3 +279,40 @@ class Agent(ABC):
         self.logger.info('/' * 10)
         self.logger.info("End of the training")
         self.logger.info('/' * 10)
+
+
+    def update_to_save_model(self):
+        self.dnn.load_weights('weights.h5')
+
+    def mean_some_range(self, x, y, nb_split=100):
+        x_split = np.array_split(x, nb_split)
+        y_split = np.array_split(y, nb_split)
+        x_mean = np.fromiter(map(np.mean, x_split), dtype=np.int16) # TODO see if take min, max, or mean => change name wrt func
+        y_mean = np.fromiter(map(np.mean, y_split), dtype=np.float32)
+        return x_mean, y_mean
+
+    def plot_stat(self, scores, episodes, epsilons, save_plot=False):
+        date = str(datetime.now().date())
+        # plt.interactive(False) # Need to put this to plot
+        nb_split = 200 # 100
+        episodes_mean, scores_mean = self.mean_some_range(episodes, scores, nb_split)
+        plt.plot(episodes_mean, scores_mean)
+        plt.title("Average Score evolution for %s " % self.algo_name)
+        plt.ylabel("Average Score at the end of episode")
+        plt.xlabel("episode number")
+        if save_plot:
+            file_save = self.algo_name + '_score_' + date + '_.png'
+            file_save = os.path.join('log', file_save)
+            plt.savefig(file_save)
+        plt.show(block=True)
+
+        episodes_mean, epsilons_mean = self.mean_some_range(episodes, epsilons, nb_split)
+        plt.plot(episodes_mean, epsilons_mean)
+        plt.title("AverageEpsilon evolution for %s " % self.algo_name)
+        plt.ylabel("Average Epsilon during the episode")
+        plt.xlabel("Episode number")
+        if save_plot:
+            file_save = self.algo_name + '_epsilon_' + date + '_.png'
+            file_save = os.path.join('log', file_save)
+            plt.savefig(file_save)
+        plt.show(block=True)
