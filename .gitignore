@@ -14,4 +14,5 @@ docs/
 __pycache__
 
 #log
-*.log
+log/
+
