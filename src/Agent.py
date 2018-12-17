@@ -281,7 +281,7 @@ class Agent(ABC):
         return x_mean, y_mean
 
     def plot_stat(self, scores, episodes, epsilons, save_plot=False):
-        date = str(datetime.now().date())
+        date = str(datetime.now())
         # plt.interactive(False) # Need to put this to plot
         nb_split = 100 # 200
         episodes_mean, scores_mean = self.mean_some_range(episodes, scores, nb_split)
