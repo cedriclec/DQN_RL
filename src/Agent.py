@@ -42,6 +42,7 @@ TRAIN_START_TIME = 1000  # Time to start, it enables to avoid to learn too soon
 class Agent(ABC):
     """Agent mother class"""
 
+    # region Init
     def __init__(self, game_name='MountainCar-v0', log_file='agent.log'):
         format = '%(asctime)-15s %(levelname)-s %(message)s'
         log_path = 'log'
@@ -60,10 +61,11 @@ class Agent(ABC):
         self.trainStart = TRAIN_START_TIME
         self.learningRate = LEARNING_RATE
         self.batch_size = BATCH_SIZE
-        self.discount_factor = 0.99 # 0.95
+        self.discount_factor = 0.99  # 0.95
         self.epsilon = EPSILON_EXPLORATE
-        self.epsilonEnd = EPSILON_END
-
+        self.epsilon_end = EPSILON_END
+        self.epsilon_reductor = (self.epsilon - self.epsilon_end) / 50000
+        self.observation_size = self.env.observation_space.shape[0]
         # TODO Check how handle it of general manner
         self.set_init_parameters_wrt_game()
 
@@ -73,21 +75,15 @@ class Agent(ABC):
         self.env.close()
 
     def set_init_parameters_wrt_game(self):
+
         # Todo Implement factory
         if self.gameName == MOUNTAIN_GAME:
             self.action_size = 2
-            self.observation_size = self.env.observation_space.shape[0]
         elif self.gameName == CART_POLE:
             self.action_size = self.env.action_space.n
-            self.observation_size = self.env.observation_space.shape[0]
-        if self.gameName == CART_POLE:
             self.trainStart = self.batch_size
-        self.epsilonReductor = (self.epsilon - self.epsilonEnd) / 50000
-        if self.gameName == CART_POLE:
-            self.epsilonReductor = 0.995
+            self.epsilon_reductor = 0.995
 
-    # ============================ACT===================
-    # TODO : Change to PyTorch
     def build_neural_network(self, input_node_number, output_node_number):
         # use tensor flow Keras Model for building the Neural Network
         if self.gameName == MOUNTAIN_GAME:
@@ -105,7 +101,10 @@ class Agent(ABC):
             model.summary()
             model.compile(loss='mse', optimizer=Adam(lr=self.learningRate))
         return model
+    # endregion
 
+    # region ACT
+    # ============================ACT===================
     # Hack : In run only function which differs from DQN / DDQN => FIX IT
     def update_target_model(self):
         pass
@@ -137,7 +136,9 @@ class Agent(ABC):
         else:
             previous_action = self.act(obs)
         return previous_action
+    # endregion
 
+    # region train
     # ==========================TRAIN================
     # It's the same except the compute target => and the update target in run
     def train(self):
@@ -181,10 +182,10 @@ class Agent(ABC):
 
     def reduce_exploration_randomly(self):
         if self.gameName == MOUNTAIN_GAME:
-            if self.epsilon > self.epsilonEnd:
-                self.epsilon -= self.epsilonReductor
+            if self.epsilon > self.epsilon_end:
+                self.epsilon -= self.epsilon_reductor
         else:
-            self.epsilon *= self.epsilonReductor
+            self.epsilon *= self.epsilon_reductor
 
     def calc_reward_if_not_last_step(self, reward, done, time):
         # Fail to converge to goal
@@ -199,19 +200,9 @@ class Agent(ABC):
             reward = -10
         return reward
 
-    def get_longer_done(self, time_count, obs, done):
-        #  if not done:
-        # self.logger.debug("obs %d" % obs[0])
-        if self.gameName == MOUNTAIN_GAME:
-            done = False
-            if (time_count >= MAX_TIME) or (obs[0] > 0.5):
-                done = True
-        return done
+    # endregion
 
-    @staticmethod
-    def get_max_prediction(predict_array):
-        return np.amax(predict_array)
-
+    # region run
     def run(self, nb_episodes=20, render=False, save_plot=False):
         self.logger.info('*'*10)
         self.logger.info("Start training for %s episodes" % nb_episodes)
@@ -279,11 +270,9 @@ class Agent(ABC):
         self.logger.info('/' * 10)
         self.logger.info("End of the training")
         self.logger.info('/' * 10)
+    # endregion
 
-
-    def update_to_save_model(self):
-        self.dnn.load_weights('weights.h5')
-
+    # region plot stats
     def mean_some_range(self, x, y, nb_split=100):
         x_split = np.array_split(x, nb_split)
         y_split = np.array_split(y, nb_split)
@@ -294,14 +283,14 @@ class Agent(ABC):
     def plot_stat(self, scores, episodes, epsilons, save_plot=False):
         date = str(datetime.now().date())
         # plt.interactive(False) # Need to put this to plot
-        nb_split = 200 # 100
+        nb_split = 100 # 200
         episodes_mean, scores_mean = self.mean_some_range(episodes, scores, nb_split)
         plt.plot(episodes_mean, scores_mean)
         plt.title("Average Score evolution for %s " % self.algo_name)
         plt.ylabel("Average Score at the end of episode")
         plt.xlabel("episode number")
         if save_plot:
-            file_save = self.algo_name + '_score_' + date + '_.png'
+            file_save = self.algo_name + '_score_' + date + '.png'
             file_save = os.path.join('log', file_save)
             plt.savefig(file_save)
         plt.show(block=True)
@@ -312,7 +301,26 @@ class Agent(ABC):
         plt.ylabel("Average Epsilon during the episode")
         plt.xlabel("Episode number")
         if save_plot:
-            file_save = self.algo_name + '_epsilon_' + date + '_.png'
+            file_save = self.algo_name + '_epsilon_' + date + '.png'
             file_save = os.path.join('log', file_save)
             plt.savefig(file_save)
         plt.show(block=True)
+    # endregion
+
+    # region tool
+    def get_longer_done(self, time_count, obs, done):
+        #  if not done:
+        # self.logger.debug("obs %d" % obs[0])
+        if self.gameName == MOUNTAIN_GAME:
+            done = False
+            if (time_count >= MAX_TIME) or (obs[0] > 0.5):
+                done = True
+        return done
+
+    @staticmethod
+    def get_max_prediction(predict_array):
+        return np.amax(predict_array)
+
+    def update_to_save_model(self):
+        self.dnn.load_weights('weights.h5')
+    # endregion

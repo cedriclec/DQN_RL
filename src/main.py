@@ -1,3 +1,13 @@
+#!/usr/bin/env python3
+# title           :main.py
+# description     :Launch agent training
+# author          :Cedric
+# date            :07-12-2018
+# version         :0.1
+# notes           :
+# python_version  :3.6.5
+# ==========
+
 from src.DQN import DQN
 from src.DDQN import DDQN
 

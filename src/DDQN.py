@@ -8,9 +8,6 @@
 # python_version  :3.6.5
 # ==========
 
-import gym
-import random
-import numpy as np
 from src.Agent import Agent
 
 
