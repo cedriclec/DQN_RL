@@ -22,10 +22,7 @@ import matplotlib.pyplot as plt
 from keras import models
 from keras.layers import Dense
 from keras.optimizers import Adam
-
-# Game name used
-CART_POLE = 'CartPole-v1'
-MOUNTAIN_GAME = 'MountainCar-v0'
+from src.config import CART_POLE, MOUNTAIN_GAME
 
 # Hyper Parameters value
 EPSILON_EXPLORATE = 1.0
@@ -195,13 +192,10 @@ class Agent(ABC):
         if (self.gameName == MOUNTAIN_GAME) and done and (time < MAX_TIME_FOR_ONE_EPISODE ):
             reward = 100
         elif (self.gameName == CART_POLE) and done:
-            # Try lowest reward -100 => when kill it
             reward = -10
         return reward
 
     def get_longer_done(self, time_count, obs, done):
-        #  if not done:
-        # self.logger.debug("obs %d" % obs[0])
         if self.gameName == MOUNTAIN_GAME:
             done = False
             if (time_count >= MAX_TIME) or (obs[0] > 0.5):
@@ -212,7 +206,7 @@ class Agent(ABC):
     def get_max_prediction(predict_array):
         return np.amax(predict_array)
 
-    def run(self, nb_episodes=20, render=False, save_plot=False):
+    def run(self, nb_episodes=20, render=False, save_plot=False, nb_episodes_render=100):
         self.logger.info('*'*10)
         self.logger.info("Start training for %s episodes" % nb_episodes)
         self.logger.info('*'*10)
@@ -230,7 +224,9 @@ class Agent(ABC):
             done = False
 
             while not done:
-                if render:
+                if nb_episodes_render >= nb_episodes or nb_episodes_render <= 0:
+                    nb_episodes_render = 1
+                if render or (e % (nb_episodes / nb_episodes_render) == 0):
                     self.env.render()
 
                 actionCount += 1
@@ -292,8 +288,7 @@ class Agent(ABC):
         return x_mean, y_mean
 
     def plot_stat(self, scores, episodes, epsilons, save_plot=False):
-        date = str(datetime.now().date())
-        # plt.interactive(False) # Need to put this to plot
+        date = str(datetime.now()) # Using datetime.now() directyl add a point in string
         nb_split = 200 # 100
         episodes_mean, scores_mean = self.mean_some_range(episodes, scores, nb_split)
         plt.plot(episodes_mean, scores_mean)
@@ -301,9 +296,9 @@ class Agent(ABC):
         plt.ylabel("Average Score at the end of episode")
         plt.xlabel("episode number")
         if save_plot:
-            file_save = self.algo_name + '_score_' + date + '_.png'
+            file_save = self.algo_name + '_score_' + date + '.png'
             file_save = os.path.join('log', file_save)
-            plt.savefig(file_save)
+            plt.savefig(file_save, format='png')
         plt.show(block=True)
 
         episodes_mean, epsilons_mean = self.mean_some_range(episodes, epsilons, nb_split)
@@ -312,7 +307,7 @@ class Agent(ABC):
         plt.ylabel("Average Epsilon during the episode")
         plt.xlabel("Episode number")
         if save_plot:
-            file_save = self.algo_name + '_epsilon_' + date + '_.png'
+            file_save = self.algo_name + '_epsilon_' + date + '.png'
             file_save = os.path.join('log', file_save)
-            plt.savefig(file_save)
+            plt.savefig(file_save, format='png')
         plt.show(block=True)
