@@ -63,7 +63,6 @@ class Agent(ABC):
         self.epsilon_end = EPSILON_END
         # self.epsilon_reductor = (self.epsilon - self.epsilon_end) / 50000
         # self.observation_size = self.env.observation_space.shape[0]
-        # TODO Check how handle it of general manner
         self.set_init_parameters_wrt_game()
 
         self.memory = deque(maxlen=MEMORY_MAX_LEN)  # Deque : list-like container with fast appends and pops on either end
@@ -72,7 +71,6 @@ class Agent(ABC):
         self.env.close()
 
     def set_init_parameters_wrt_game(self):
-        # Todo Implement factory
         if self.gameName == MOUNTAIN_GAME:
             self.action_size = 2
             self.observation_size = self.env.observation_space.shape[0]
@@ -107,7 +105,7 @@ class Agent(ABC):
     # region ACT
     # ============================ACT===================
 
-    # Hack : In run only function which differs from DQN / DDQN => FIX IT
+    # Hack : In run only function which differs from DQN / DDQN
     def update_target_model(self):
         pass
 
@@ -130,7 +128,7 @@ class Agent(ABC):
             if (count_action % 4) == 0:
                 action = self.act(obs)
                 # Action 0 => Left, 2 => Right, 1 => Nothing
-                # Don't want our robot to do nothing => TODO put this doc in docs
+                # Don't want our robot to do nothing =>
                 if action == 0:
                     previous_action = 0
                 elif action == 1:
@@ -159,7 +157,6 @@ class Agent(ABC):
             # Associate to the action used in memory, the reward associated
             target[action] = self.compute_target_reward(reward, done, next_state)
             update_input[i] = state
-            # target = np.reshape(target, [1, -1]) # reshape into a vector
             update_target[i] = target
 
         # Train on all batch update
@@ -175,7 +172,7 @@ class Agent(ABC):
     def remember(self, observation, next_observation, action, reward, done):
         if self.gameName == MOUNTAIN_GAME:
             if action == 2:
-                action = 1 # TODO : Voir le pourquoi du mountain-game, l'action 2 doit être changée en 1
+                action = 1
         self.memory.append((observation, next_observation, action, reward, done))
 
     def has_to_train_with_memory(self):
@@ -194,7 +191,6 @@ class Agent(ABC):
         # Try to give bad bad reward if don't reach the goal
         # And good reward if reach the goal
 
-        # TODO : Factory
         if (self.gameName == MOUNTAIN_GAME) and done and (time < MAX_TIME_FOR_ONE_EPISODE ):
             reward = 100
         elif (self.gameName == CART_POLE) and done:
@@ -238,7 +234,7 @@ class Agent(ABC):
                 score += reward
                 self.remember(obs, next_obs, action, reward, done)
 
-                # Train at every action => TODO Check if should really be done
+                # Train at every action => Mountain game need a lot of train (caus lot of examples never reach the goal)
                 if (self.gameName == MOUNTAIN_GAME) and self.has_to_train_with_memory():
                     self.train()
 
@@ -255,7 +251,6 @@ class Agent(ABC):
                     self.logger.info("episode: %s, score %s, memory length : %s, epsilon : %s"
                                      %(e, score, len(self.memory), self.epsilon))
 
-            # TODO check if this one is better => train only at the end
             if (self.gameName == CART_POLE) and self.has_to_train_with_memory():
                 self.train()
 
@@ -276,7 +271,7 @@ class Agent(ABC):
     def mean_some_range(self, x, y, nb_split=100):
         x_split = np.array_split(x, nb_split)
         y_split = np.array_split(y, nb_split)
-        x_mean = np.fromiter(map(np.mean, x_split), dtype=np.int16) # TODO see if take min, max, or mean => change name wrt func
+        x_mean = np.fromiter(map(np.mean, x_split), dtype=np.int16)
         y_mean = np.fromiter(map(np.mean, y_split), dtype=np.float32)
         return x_mean, y_mean
 
