@@ -22,10 +22,7 @@ import matplotlib.pyplot as plt
 from keras import models
 from keras.layers import Dense
 from keras.optimizers import Adam
-
-# Game name used
-CART_POLE = 'CartPole-v1'
-MOUNTAIN_GAME = 'MountainCar-v0'
+from src.config import CART_POLE, MOUNTAIN_GAME
 
 # Hyper Parameters value
 EPSILON_EXPLORATE = 1.0
@@ -61,11 +58,11 @@ class Agent(ABC):
         self.trainStart = TRAIN_START_TIME
         self.learningRate = LEARNING_RATE
         self.batch_size = BATCH_SIZE
-        self.discount_factor = 0.99  # 0.95
+        self.discount_factor = 0.99 # 0.95
         self.epsilon = EPSILON_EXPLORATE
         self.epsilon_end = EPSILON_END
-        self.epsilon_reductor = (self.epsilon - self.epsilon_end) / 50000
-        self.observation_size = self.env.observation_space.shape[0]
+        # self.epsilon_reductor = (self.epsilon - self.epsilon_end) / 50000
+        # self.observation_size = self.env.observation_space.shape[0]
         # TODO Check how handle it of general manner
         self.set_init_parameters_wrt_game()
 
@@ -75,13 +72,17 @@ class Agent(ABC):
         self.env.close()
 
     def set_init_parameters_wrt_game(self):
-
         # Todo Implement factory
         if self.gameName == MOUNTAIN_GAME:
             self.action_size = 2
+            self.observation_size = self.env.observation_space.shape[0]
         elif self.gameName == CART_POLE:
             self.action_size = self.env.action_space.n
+            self.observation_size = self.env.observation_space.shape[0]
+        if self.gameName == CART_POLE:
             self.trainStart = self.batch_size
+        self.epsilon_reductor = (self.epsilon - self.epsilon_end) / 50000
+        if self.gameName == CART_POLE:
             self.epsilon_reductor = 0.995
 
     def build_neural_network(self, input_node_number, output_node_number):
@@ -105,6 +106,7 @@ class Agent(ABC):
 
     # region ACT
     # ============================ACT===================
+
     # Hack : In run only function which differs from DQN / DDQN => FIX IT
     def update_target_model(self):
         pass
@@ -196,14 +198,10 @@ class Agent(ABC):
         if (self.gameName == MOUNTAIN_GAME) and done and (time < MAX_TIME_FOR_ONE_EPISODE ):
             reward = 100
         elif (self.gameName == CART_POLE) and done:
-            # Try lowest reward -100 => when kill it
             reward = -10
         return reward
 
-    # endregion
-
-    # region run
-    def run(self, nb_episodes=20, render=False, save_plot=False):
+    def run(self, nb_episodes=20, render=False, save_plot=False, nb_episodes_render=100):
         self.logger.info('*'*10)
         self.logger.info("Start training for %s episodes" % nb_episodes)
         self.logger.info('*'*10)
@@ -221,7 +219,9 @@ class Agent(ABC):
             done = False
 
             while not done:
-                if render:
+                if nb_episodes_render >= nb_episodes or nb_episodes_render <= 0:
+                    nb_episodes_render = 1
+                if render or (e % (nb_episodes / nb_episodes_render) == 0):
                     self.env.render()
 
                 actionCount += 1
@@ -281,9 +281,9 @@ class Agent(ABC):
         return x_mean, y_mean
 
     def plot_stat(self, scores, episodes, epsilons, save_plot=False):
-        date = str(datetime.now().date())
-        # plt.interactive(False) # Need to put this to plot
-        nb_split = 100 # 200
+        date = str(datetime.now()) # Using datetime.now() directly add a point in string
+        nb_split = 200 # 100
+
         episodes_mean, scores_mean = self.mean_some_range(episodes, scores, nb_split)
         plt.plot(episodes_mean, scores_mean)
         plt.title("Average Score evolution for %s " % self.algo_name)
@@ -292,7 +292,7 @@ class Agent(ABC):
         if save_plot:
             file_save = self.algo_name + '_score_' + date + '.png'
             file_save = os.path.join('log', file_save)
-            plt.savefig(file_save)
+            plt.savefig(file_save, format='png')
         plt.show(block=True)
 
         episodes_mean, epsilons_mean = self.mean_some_range(episodes, epsilons, nb_split)
@@ -303,7 +303,7 @@ class Agent(ABC):
         if save_plot:
             file_save = self.algo_name + '_epsilon_' + date + '.png'
             file_save = os.path.join('log', file_save)
-            plt.savefig(file_save)
+            plt.savefig(file_save, format='png')
         plt.show(block=True)
     # endregion
 
